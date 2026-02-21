@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamGrab | Premium Video Downloader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="background-gradients">
+        <div class="gradient-blob form-blob"></div>
+        <div class="gradient-blob result-blob"></div>
+    </div>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <header class="hero">
+            <h1>Download any video in <span class="text-gradient">seconds</span></h1>
+            <p>Paste a YouTube URL below to instantly fetch high-quality MP4 and MP3 formats.</p>
+        </header>
+
+        <!-- Input Form -->
+        <section class="glass-card form-container">
+            <form id="downloadForm">
+                <div class="input-group">
+                    <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required
+                        autocomplete="off">
+                    <button type="submit" id="fetchBtn" class="primary-btn">
+                        <span class="btn-text">Get Video</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Result Card (Hidden by default) -->
+        <section id="resultCard" class="glass-card result-container hidden">
+            <div class="video-info">
+                <div class="thumbnail-wrapper">
+                    <img id="videoThumb" src="" alt="Video Thumbnail">
+                </div>
+                <div class="details">
+                    <h3 id="videoTitle">Video Title</h3>
+                    <p class="duration">Duration: <span id="videoDuration">0:00</span></p>
+
+                    <div class="download-controls">
+                        <select id="formatSelect" class="styled-select">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <button id="startDownloadBtn" class="primary-btn pulse">
+                            <span>Download Now</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Section (Hidden by default) -->
+            <div id="progressSection" class="progress-section hidden">
+                <div class="progress-header">
+                    <span id="progressStatusText">Starting download...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="progressBar" class="progress-bar-fill"></div>
+                </div>
+
+                <a id="finalDownloadLink" class="success-btn hidden" download>
+                    Save File to Device
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
