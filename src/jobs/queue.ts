@@ -5,6 +5,8 @@ import { logger } from '../utils/logger';
 
 export const redisConnection = new IORedis(config.redisUrl, {
     maxRetriesPerRequest: null,
+    // Enable TLS options for Upstash
+    tls: config.redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
 });
 
 redisConnection.on('error', (err) => {
@@ -14,6 +16,15 @@ redisConnection.on('error', (err) => {
 redisConnection.on('connect', () => {
     logger.info('Connected to Redis successfully');
 });
+
+// 🚀 UPSTASH FIX: Prevent 500 Internal Server Errors on Railway!
+// Upstash free tier forcefully drops idle connections after 5 minutes.
+// This 60-second ping keeps the connection warm so IORedis never throws a 500 rejection error.
+setInterval(() => {
+    if (redisConnection.status === 'ready') {
+        redisConnection.ping().catch(() => { });
+    }
+}, 60000);
 
 export const DOWNLOAD_QUEUE_NAME = 'video-download-queue';
 
