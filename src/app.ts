@@ -10,6 +10,9 @@ import videoRoutes from './routes/video.routes';
 
 const app: Express = express();
 
+// Trust reverse proxy for rate limiter (Cloudflare/Railway)
+app.set('trust proxy', 1);
+
 // Security Middlewares
 app.use(helmet());
 app.use(cors({
