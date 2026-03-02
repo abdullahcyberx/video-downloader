@@ -15,7 +15,13 @@ export interface VideoInfo {
 export const ytDlpService = {
     async getInfo(url: string): Promise<VideoInfo> {
         return new Promise((resolve, reject) => {
-            const args = ['--dump-json', '--no-playlist', url];
+            const args = [
+                '--dump-json',
+                '--no-playlist',
+                '--js-runtimes', 'nodejs',
+                '--extractor-args', 'youtube:player_client=android',
+                url
+            ];
             const ytDlp = spawn('yt-dlp', args);
 
             let stdoutData = '';
@@ -64,6 +70,8 @@ export const ytDlpService = {
         const args = [
             '--newline',
             '--no-playlist',
+            '--js-runtimes', 'nodejs',
+            '--extractor-args', 'youtube:player_client=android',
             '-o', outputTemplate,
         ];
 
