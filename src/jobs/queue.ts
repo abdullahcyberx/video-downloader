@@ -17,7 +17,13 @@ export const downloadQueue = new Queue(DOWNLOAD_QUEUE_NAME, {
             type: 'exponential',
             delay: 1000,
         },
-        removeOnComplete: true, // Keep it clean
-        removeOnFail: 100, // Keep some failed jobs for debugging
+        removeOnComplete: {
+            age: 3600, // Keep completed metadata for 1 hour to allow frontend polling
+            count: 1000
+        },
+        removeOnFail: {
+            age: 86400, // Keep failed jobs for 24h for debugging
+            count: 1000
+        },
     },
 });
