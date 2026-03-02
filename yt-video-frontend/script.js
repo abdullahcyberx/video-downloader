@@ -1,3 +1,6 @@
+// API Config
+const API_BASE_URL = 'https://video-downloader-production-f0a1.up.railway.app';
+
 // DOM Elements
 const ytToggle = document.getElementById('ytToggle');
 const ttToggle = document.getElementById('ttToggle');
@@ -61,6 +64,21 @@ function setLoadingState(isLoading, btn, textElement, originalText) {
 }
 
 // Event Listeners
+const pasteBtn = document.getElementById('pasteBtn');
+if (pasteBtn) {
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                urlInput.value = text.trim();
+                showToast('Pasted from clipboard!', 'success');
+            }
+        } catch (err) {
+            showToast('Unable to read clipboard. Please paste manually.', 'error');
+            console.error('Failed to read clipboard: ', err);
+        }
+    });
+}
 ytToggle.addEventListener('click', () => {
     ytToggle.classList.add('active');
     ttToggle.classList.remove('active');
@@ -77,8 +95,29 @@ ttToggle.addEventListener('click', () => {
     urlInput.focus();
 });
 
+let vignetteLoaded = false;
+function loadVignette() {
+    if (!vignetteLoaded) {
+        // Appends the exact snippet to the body
+        (function (s) {
+            s.dataset.zone = '10669202';
+            s.src = 'https://gizokraijaw.net/vignette.min.js';
+        })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+        vignetteLoaded = true;
+    }
+}
+
+// Preload the script slightly before the actual click so it can intercept the click event
+fetchBtn.addEventListener('mouseenter', loadVignette, { once: true });
+fetchBtn.addEventListener('touchstart', loadVignette, { once: true });
+urlInput.addEventListener('focus', loadVignette, { once: true });
+
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Ensure it's loaded just in case they bypassed the hover/focus events
+    loadVignette();
+
     const url = urlInput.value.trim();
     if (!url) return showToast('Please enter a valid URL', 'error');
 
@@ -99,7 +138,7 @@ form.addEventListener('submit', async (e) => {
     setLoadingState(true, fetchBtn, btnText, 'Get Video');
 
     try {
-        const response = await fetch('/api/video/info', {
+        const response = await fetch(`${API_BASE_URL}/api/video/info`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
@@ -122,6 +161,7 @@ form.addEventListener('submit', async (e) => {
 function renderVideoInfo(data) {
     videoTitle.textContent = data.title;
     videoThumb.src = data.thumbnail;
+    videoThumb.alt = `${data.title} - Video Thumbnail`;
     videoDuration.textContent = formatTime(data.duration);
 
     // Simplify formats - Only offer MP4 per user request
@@ -149,12 +189,12 @@ startDownloadBtn.addEventListener('click', async () => {
     startDownloadBtn.querySelector('span').textContent = 'Starting...';
 
     try {
-        const response = await fetch('/api/video/download', {
+        const response = await fetch(`${API_BASE_URL}/api/video/download`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 url,
-                format: 'video'
+                format: formatData.formatId
             })
         });
 
@@ -185,7 +225,7 @@ function startPolling() {
 
     pollInterval = setInterval(async () => {
         try {
-            const res = await fetch(`/api/video/status/${currentJobId}`);
+            const res = await fetch(`${API_BASE_URL}/api/video/status/${currentJobId}`);
             const result = await res.json();
 
             if (!res.ok) {
@@ -232,7 +272,7 @@ function finishDownload() {
     progressPercent.textContent = `100%`;
     progressStatusText.textContent = 'Ready!';
 
-    finalDownloadLink.href = `/api/video/file/${currentJobId}`;
+    finalDownloadLink.href = `${API_BASE_URL}/api/video/file/${currentJobId}`;
     finalDownloadLink.classList.remove('hidden');
     showToast('Processing complete! File is ready.', 'success');
 }

@@ -1,0 +1,53 @@
+# Shehzada Video Downloader: Comprehensive Overview
+
+This document provides a complete, detailed overview of what the Shehzada Video Downloader does and how it works under the hood.
+
+## What It Does (Core Features)
+
+The Shehzada Video Downloader is a web application that allows users to download videos and audio from two major platforms: **YouTube** and **TikTok**. 
+
+### 1. YouTube Downloader
+- **Format Selection:** Users can extract videos in various MP4 resolutions (up to 1080p and 4K when available) or rip just the audio as an MP3 file.
+- **Shorts Support:** It inherently supports downloading YouTube Shorts alongside standard YouTube videos.
+- **No Software Required:** Everything is handled server-side, meaning the user doesn't need to install any tricky browser extensions or desktop apps.
+
+### 2. TikTok Downloader
+- **Watermark Removal:** A key feature of the tool is its ability to bypass TikTok's standard processing and extract the raw, high-quality MP4 file *without* the bouncing TikTok watermark.
+- **Direct Save:** Useful for creators who want to repurpose their TikTok content for Instagram Reels or YouTube Shorts without being penalized by algorithms that detect competitor watermarks.
+
+### 3. User Experience (UX)
+- **Glassmorphic Design:** The UI feels modern, utilizing frosted glass effects (`backdrop-filter`) over fluid, animated gradient blobs.
+- **Mobile-Optimized:** The layout features tap-friendly targets (2026 standards), fluid typography, and touch-optimized input handling.
+- **Clipboard Integration:** A "Paste URL" button natively reads the user's clipboard for frictionless data entry.
+- **Live Progress:** During a download, a progress bar dynamically updates the user on the server's extraction and processing percentage.
+
+---
+
+## How It Works (The Architecture)
+
+The application is split into two halves: a static **Frontend** (HTML/CSS/JS) and a robust **Backend** API (Node.js/Express).
+
+### 1. The Frontend (Client-Side)
+The frontend is built with vanilla HTML, CSS, and JavaScript. It does not use heavy frameworks like React or Vue, ensuring ultra-fast loading speeds.
+- **Routing:** There is a main index page ([index.html](file:///d:/websites/yt%20video%20downloader/yt-video-frontend/index.html)), and dedicated sub-pages (`/youtube-downloader/` and `/tiktok-downloader/`) for SEO targeting.
+- **Interaction ([script.js](file:///d:/websites/yt%20video%20downloader/yt-video-frontend/script.js)):** When a user drops a link and clicks "Get Video," the frontend JavaScript makes an asynchronous `POST` request to the backend API (`/api/video/info`).
+- **Polling:** Downloading a video takes time. Instead of keeping a single HTTP connection open (which could time out), the frontend "polls" the backend. It receives a `jobId` and then repeatedly asks the server, *"Is my video ready yet? What percentage are you at?"* This is what drives the progress bar.
+- **Monetization (Ads):** The site utilizes asynchronous push tag and vignette banner ads that trigger deliberately *after* the page loads (or upon clicking the "Get Video" button) to prevent blocking the initial user view.
+
+### 2. The Backend (Server-Side)
+The backend is a **TypeScript/Node.js** application built with the **Express.js** framework. It acts as the engine performing the actual heavy lifting.
+
+- **The Engine (`yt-dlp`):** At the core of the extraction process is `yt-dlp` (a vastly improved fork of `youtube-dl`). The backend spawns child processes to run `yt-dlp` commands. This tool is responsible for actually pinging YouTube's or TikTok's servers, bypassing their protections, fetching metadata, and downloading the raw video chunks.
+- **Media Processing (`FFmpeg`):** YouTube often separates high-quality video (1080p+) and audio streams to save bandwidth. The backend uses `FFmpeg` to stitch the downloaded video stream and audio stream back together into a single, playable `.mp4` file before sending it to the user. It also handles `.mp3` conversions.
+- **Queueing System:** Because downloading and processing videos is incredibly CPU-intensive, the server uses a Queue. When a user requests a video, it enters a job queue. The server processes these jobs systematically. This prevents the server from crashing if 100 people try to download 4K videos at the exact same second.
+- **Temporary Storage:** Videos are downloaded to the server's local file system (or a volatile temporary directory) just long enough for the user to download them. Once the user fetches the final file, the server cleans up the temporary files to save space.
+
+### Summary Flowchart
+1. **User** pastes a TikTok link and hits *Get Video*.
+2. **Frontend** sends the link to the **Backend API**.
+3. **Backend** places the request in a **Queue** and returns a `Job ID`.
+4. **Backend Worker** takes the job and runs `yt-dlp` to fetch the raw, un-watermarked video.
+5. **Frontend** repeatedly pings the backend with the `Job ID`, updating the UI progress bar.
+6. **Backend Worker** finishes processing (merging audio/video via `FFmpeg`) and returns a temporary download URL.
+7. **Frontend** shows a "Download Now" button.
+8. **User** saves the file directly to their device.

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap reference
+Sitemap: https://ytvideodownloader-cyberx.netlify.app/sitemap.xml

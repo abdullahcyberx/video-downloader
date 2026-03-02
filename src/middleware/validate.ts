@@ -4,7 +4,7 @@ import { AppError } from './error';
 
 export const validate = (schema: Joi.ObjectSchema) => {
     return (req: Request, res: Response, next: NextFunction) => {
-        const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true });
+        const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true, stripUnknown: true });
 
         if (error) {
             const errorMessage = error.details.map((details) => details.message).join(', ');

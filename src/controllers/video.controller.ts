@@ -86,6 +86,10 @@ export const videoController = {
                 return next(new AppError('File not ready or job failed', 400));
             }
 
+            if (!job.returnvalue) {
+                return next(new AppError('File return object missing', 500));
+            }
+
             const { filePath } = job.returnvalue;
 
             if (!filePath || !fs.existsSync(filePath)) {
