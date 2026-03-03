@@ -21,14 +21,21 @@ export const ytDlpService = {
                 '--js-runtimes', 'node',
                 // Heavy anti-bot evasion for Railway IPs
                 '--impersonate', 'Chrome',
-                '--extractor-args', 'youtube:player_client=ios,tv,web',
+                '--force-ipv4',
+                '--extractor-args', 'youtube:player_client=ios,android,web',
             ];
 
             let cookiesFilePath: string | null = null;
             if (config.youtubeCookies) {
+                logger.info(`YOUTUBE_COOKIES env var detected. Length: ${config.youtubeCookies.length}, Has Newlines: ${config.youtubeCookies.includes('\n')}`);
+                if (!config.youtubeCookies.includes('\n')) {
+                    logger.warn(`YOUTUBE_COOKIES string lacks newlines! It may have been mangled by Railway UI. The Netscape format requires newlines.`);
+                }
                 await fs.mkdir(config.tmpDir, { recursive: true });
                 cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
-                await fs.writeFile(cookiesFilePath, config.youtubeCookies, 'utf8');
+                // Replace literal \n occurrences if they got escaped into physical characters
+                const sanitizedCookies = config.youtubeCookies.replace(/\\n/g, '\n');
+                await fs.writeFile(cookiesFilePath, sanitizedCookies, 'utf8');
                 args.push('--cookies', cookiesFilePath);
             }
 
@@ -96,7 +103,8 @@ export const ytDlpService = {
             '--js-runtimes', 'node',
             // Heavy anti-bot evasion for Railway IPs
             '--impersonate', 'Chrome',
-            '--extractor-args', 'youtube:player_client=ios,tv,web',
+            '--force-ipv4',
+            '--extractor-args', 'youtube:player_client=ios,android,web',
             '-o', outputTemplate,
         ];
 
@@ -111,7 +119,8 @@ export const ytDlpService = {
             let cookiesFilePath: string | null = null;
             if (config.youtubeCookies) {
                 cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
-                await fs.writeFile(cookiesFilePath, config.youtubeCookies, 'utf8');
+                const sanitizedCookies = config.youtubeCookies.replace(/\\n/g, '\n');
+                await fs.writeFile(cookiesFilePath, sanitizedCookies, 'utf8');
                 args.push('--cookies', cookiesFilePath);
             }
 
