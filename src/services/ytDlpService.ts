@@ -19,27 +19,12 @@ export const ytDlpService = {
                 '--dump-json',
                 '--no-playlist',
                 '--js-runtimes', 'node',
-                // Heavy anti-bot evasion for Railway IPs
-                '--impersonate', 'Chrome',
+                // Removed impersonate to fix crash, using static cookies instead
                 '--force-ipv4',
                 '--extractor-args', 'youtube:player_client=ios,android,web',
+                '--cookies', path.join(process.cwd(), 'cookies.txt'),
+                url
             ];
-
-            let cookiesFilePath: string | null = null;
-            if (config.youtubeCookies) {
-                logger.info(`YOUTUBE_COOKIES env var detected. Length: ${config.youtubeCookies.length}, Has Newlines: ${config.youtubeCookies.includes('\n')}`);
-                if (!config.youtubeCookies.includes('\n')) {
-                    logger.warn(`YOUTUBE_COOKIES string lacks newlines! It may have been mangled by Railway UI. The Netscape format requires newlines.`);
-                }
-                await fs.mkdir(config.tmpDir, { recursive: true });
-                cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
-                // Replace literal \n occurrences if they got escaped into physical characters
-                const sanitizedCookies = config.youtubeCookies.replace(/\\n/g, '\n');
-                await fs.writeFile(cookiesFilePath, sanitizedCookies, 'utf8');
-                args.push('--cookies', cookiesFilePath);
-            }
-
-            args.push(url);
 
             const ytDlp = spawn('yt-dlp', args);
 
@@ -55,15 +40,6 @@ export const ytDlpService = {
             });
 
             ytDlp.on('close', async (code) => {
-                // Cleanup temp cookies file if created
-                if (cookiesFilePath) {
-                    try {
-                        await fs.unlink(cookiesFilePath);
-                    } catch (err) {
-                        logger.error(`Failed to delete temporary cookies file: ${cookiesFilePath}`, err);
-                    }
-                }
-
                 if (code === 0) {
                     try {
                         const info = JSON.parse(stdoutData);
@@ -101,10 +77,10 @@ export const ytDlpService = {
             '--newline',
             '--no-playlist',
             '--js-runtimes', 'node',
-            // Heavy anti-bot evasion for Railway IPs
-            '--impersonate', 'Chrome',
+            // Removed impersonate to fix crash, using static cookies instead
             '--force-ipv4',
             '--extractor-args', 'youtube:player_client=ios,android,web',
+            '--cookies', path.join(process.cwd(), 'cookies.txt'),
             '-o', outputTemplate,
         ];
 
@@ -116,14 +92,6 @@ export const ytDlpService = {
         }
 
         return new Promise(async (resolve, reject) => {
-            let cookiesFilePath: string | null = null;
-            if (config.youtubeCookies) {
-                cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
-                const sanitizedCookies = config.youtubeCookies.replace(/\\n/g, '\n');
-                await fs.writeFile(cookiesFilePath, sanitizedCookies, 'utf8');
-                args.push('--cookies', cookiesFilePath);
-            }
-
             args.push(url);
 
             logger.info(`Starting yt-dlp spawn with args: ${args.join(' ')}`);
@@ -160,13 +128,6 @@ export const ytDlpService = {
             });
 
             ytDlp.on('close', async (code) => {
-                if (cookiesFilePath) {
-                    try {
-                        await fs.unlink(cookiesFilePath);
-                    } catch (err) {
-                        logger.error(`Failed to delete temporary cookies file: ${cookiesFilePath}`, err);
-                    }
-                }
                 if (code === 0) {
                     try {
                         // Find the actual existing file from candidates (since yt-dlp handles temporary naming too)
