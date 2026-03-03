@@ -87,8 +87,8 @@ export const ytDlpService = {
         if (format === 'audio') {
             args.push('-x', '--audio-format', 'mp3');
         } else {
-            // Strictly enforce H.264 (avc) video and AAC (mp4a) audio codecs to ensure broad native player compatibility
-            args.push('-f', 'bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/best', '--merge-output-format', 'mp4');
+            // Prioritize best mp4 video and m4a audio without strict h264 codec matching, preventing 720p/360p fallbacks
+            args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', '--merge-output-format', 'mp4');
         }
 
         return new Promise(async (resolve, reject) => {
