@@ -18,7 +18,7 @@ export const ytDlpService = {
             const args = [
                 '--dump-json',
                 '--no-playlist',
-                '--js-runtimes', 'nodejs',
+                '--js-runtimes', 'node',
                 '--extractor-args', 'youtube:player_client=android',
                 url
             ];
@@ -70,7 +70,7 @@ export const ytDlpService = {
         const args = [
             '--newline',
             '--no-playlist',
-            '--js-runtimes', 'nodejs',
+            '--js-runtimes', 'node',
             '--extractor-args', 'youtube:player_client=android',
             '-o', outputTemplate,
         ];
