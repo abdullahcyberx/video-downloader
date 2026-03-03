@@ -19,7 +19,9 @@ export const ytDlpService = {
                 '--dump-json',
                 '--no-playlist',
                 '--js-runtimes', 'node',
-                '--extractor-args', 'youtube:player_client=android',
+                // Heavy anti-bot evasion for Railway IPs
+                '--impersonate', 'Chrome',
+                '--extractor-args', 'youtube:player_client=ios,tv,web',
                 url
             ];
             const ytDlp = spawn('yt-dlp', args);
@@ -71,7 +73,9 @@ export const ytDlpService = {
             '--newline',
             '--no-playlist',
             '--js-runtimes', 'node',
-            '--extractor-args', 'youtube:player_client=android',
+            // Heavy anti-bot evasion for Railway IPs
+            '--impersonate', 'Chrome',
+            '--extractor-args', 'youtube:player_client=ios,tv,web',
             '-o', outputTemplate,
         ];
 
