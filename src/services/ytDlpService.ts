@@ -89,7 +89,7 @@ export const ytDlpService = {
         } else {
             // Prioritize the absolute highest quality video and audio streams regardless of their source container, 
             // and use ffmpeg to mux them into the final requested mp4 container.
-            args.push('-f', 'bestvideo+bestaudio/best', '--merge-output-format', 'mp4');
+            args.push('-f', 'bv*+ba/b', '--merge-output-format', 'mp4');
         }
 
         return new Promise(async (resolve, reject) => {
