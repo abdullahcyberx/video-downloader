@@ -68,9 +68,11 @@ export const ytDlpService = {
                             formats: info.formats,
                         });
                     } catch (e: any) {
+                        logger.error(`Failed to parse yt-dlp output: ${e.message}`, { stderr: stderrData });
                         reject(new Error(`Failed to parse yt-dlp output: ${e.message}`));
                     }
                 } else {
+                    logger.error(`yt-dlp process exited with code ${code}`, { stderr: stderrData });
                     reject(new Error(`yt-dlp process exited with code ${code}: ${stderrData}`));
                 }
             });
