@@ -14,7 +14,7 @@ export interface VideoInfo {
 
 export const ytDlpService = {
     async getInfo(url: string): Promise<VideoInfo> {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const args = [
                 '--dump-json',
                 '--no-playlist',
@@ -22,8 +22,18 @@ export const ytDlpService = {
                 // Heavy anti-bot evasion for Railway IPs
                 '--impersonate', 'Chrome',
                 '--extractor-args', 'youtube:player_client=ios,tv,web',
-                url
             ];
+
+            let cookiesFilePath: string | null = null;
+            if (config.youtubeCookies) {
+                await fs.mkdir(config.tmpDir, { recursive: true });
+                cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
+                await fs.writeFile(cookiesFilePath, config.youtubeCookies, 'utf8');
+                args.push('--cookies', cookiesFilePath);
+            }
+
+            args.push(url);
+
             const ytDlp = spawn('yt-dlp', args);
 
             let stdoutData = '';
@@ -37,7 +47,16 @@ export const ytDlpService = {
                 stderrData += data.toString();
             });
 
-            ytDlp.on('close', (code) => {
+            ytDlp.on('close', async (code) => {
+                // Cleanup temp cookies file if created
+                if (cookiesFilePath) {
+                    try {
+                        await fs.unlink(cookiesFilePath);
+                    } catch (err) {
+                        logger.error(`Failed to delete temporary cookies file: ${cookiesFilePath}`, err);
+                    }
+                }
+
                 if (code === 0) {
                     try {
                         const info = JSON.parse(stdoutData);
@@ -86,9 +105,16 @@ export const ytDlpService = {
             args.push('-f', 'bestvideo[vcodec^=avc]+bestaudio[acodec^=mp4a]/best', '--merge-output-format', 'mp4');
         }
 
-        args.push(url);
+        return new Promise(async (resolve, reject) => {
+            let cookiesFilePath: string | null = null;
+            if (config.youtubeCookies) {
+                cookiesFilePath = path.join(config.tmpDir, `cookies-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.txt`);
+                await fs.writeFile(cookiesFilePath, config.youtubeCookies, 'utf8');
+                args.push('--cookies', cookiesFilePath);
+            }
 
-        return new Promise((resolve, reject) => {
+            args.push(url);
+
             logger.info(`Starting yt-dlp spawn with args: ${args.join(' ')}`);
             const ytDlp = spawn('yt-dlp', args);
 
@@ -123,6 +149,13 @@ export const ytDlpService = {
             });
 
             ytDlp.on('close', async (code) => {
+                if (cookiesFilePath) {
+                    try {
+                        await fs.unlink(cookiesFilePath);
+                    } catch (err) {
+                        logger.error(`Failed to delete temporary cookies file: ${cookiesFilePath}`, err);
+                    }
+                }
                 if (code === 0) {
                     try {
                         // Find the actual existing file from candidates (since yt-dlp handles temporary naming too)

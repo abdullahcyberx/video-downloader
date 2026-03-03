@@ -10,4 +10,5 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '1073741824', 10),
   tmpDir: process.env.TMP_DIR || path.join(os.tmpdir(), 'yt-downloads'),
+  youtubeCookies: process.env.YOUTUBE_COOKIES || null, // Optional Netscape formatted cookies string
 };
