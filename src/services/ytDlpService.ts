@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
+import { AppError } from '../middleware/error';
 
 export interface VideoInfo {
     id: string;
@@ -12,17 +13,41 @@ export interface VideoInfo {
     formats: any[];
 }
 
+const parseStderrForError = (stderr: string): Error => {
+    const lowerErr = stderr.toLowerCase();
+
+    if (lowerErr.includes('requested format is not available')) {
+        return new AppError('Format not available, try another quality', 400);
+    }
+    if (lowerErr.includes('sign in to confirm you’re not a bot') || lowerErr.includes('js challenge') || lowerErr.includes('challenge provider') || lowerErr.includes('http error 403') || lowerErr.includes('blocked')) {
+        return new AppError('Video temporarily unavailable due to YouTube restrictions', 400);
+    }
+    if (lowerErr.includes('video unavailable')) {
+        return new AppError('Video unavailable', 400);
+    }
+    if (lowerErr.includes('private video')) {
+        return new AppError('Private video', 400);
+    }
+    if (lowerErr.includes('age restricted') || lowerErr.includes('sign in to confirm your age')) {
+        return new AppError('Age restricted video', 400);
+    }
+    if (lowerErr.includes('no space left on device') || lowerErr.includes('disk full')) {
+        return new AppError('Server is currently out of disk space. Please contact administrator.', 500);
+    }
+    if (lowerErr.includes('ffprobe or avprobe not found') || lowerErr.includes('ffmpeg not found')) {
+        return new AppError('ffmpeg is missing from the server. Please contact administrator.', 500);
+    }
+    return new AppError(`Download failed: ${stderr.trim().split('\n').pop() || 'Unknown error'}`, 400);
+};
+
 export const ytDlpService = {
     async getInfo(url: string): Promise<VideoInfo> {
         return new Promise(async (resolve, reject) => {
             const args = [
                 '--dump-json',
                 '--no-playlist',
-                '--js-runtimes', 'node',
-                // Removed impersonate to fix crash, using static cookies instead
+                '--no-warnings',
                 '--force-ipv4',
-                '--extractor-args', 'youtube:player_client=ios,android,web',
-                '--cookies', path.join(process.cwd(), 'cookies.txt'),
                 url
             ];
 
@@ -43,20 +68,36 @@ export const ytDlpService = {
                 if (code === 0) {
                     try {
                         const info = JSON.parse(stdoutData);
+
+                        const availableFormats = [];
+                        const has1080 = info.formats?.some((f: any) => f.height === 1080) || false;
+                        const has720 = info.formats?.some((f: any) => f.height === 720) || false;
+                        const has480 = info.formats?.some((f: any) => f.height === 480) || false;
+
+                        if (has1080) availableFormats.push({ formatId: '1080', label: '1080p Video - High Quality' });
+                        if (has720) availableFormats.push({ formatId: '720', label: '720p Video - Good Quality' });
+                        if (has480) availableFormats.push({ formatId: '480', label: '480p Video - Normal Quality' });
+
+                        if (availableFormats.length === 0) {
+                            availableFormats.push({ formatId: '1080', label: 'Video - Best Available' });
+                        }
+
+                        availableFormats.push({ formatId: 'audio', label: 'Audio Only - MP3' });
+
                         resolve({
                             id: info.id,
                             title: info.title,
                             thumbnail: info.thumbnail,
                             duration: info.duration,
-                            formats: info.formats,
+                            formats: availableFormats,
                         });
                     } catch (e: any) {
                         logger.error(`Failed to parse yt-dlp output: ${e.message}`, { stderr: stderrData });
-                        reject(new Error(`Failed to parse yt-dlp output: ${e.message}`));
+                        reject(new AppError(`Failed to parse yt-dlp output: ${e.message}`, 500));
                     }
                 } else {
                     logger.error(`yt-dlp process exited with code ${code}`, { stderr: stderrData });
-                    reject(new Error(`yt-dlp process exited with code ${code}: ${stderrData}`));
+                    reject(parseStderrForError(stderrData));
                 }
             });
         });
@@ -64,7 +105,7 @@ export const ytDlpService = {
 
     async downloadVideo(
         url: string,
-        format: 'video' | 'audio',
+        format: '1080' | '720' | '480' | 'audio',
         onProgress: (progress: number) => void
     ): Promise<{ filePath: string }> {
         await fs.mkdir(config.tmpDir, { recursive: true });
@@ -76,20 +117,22 @@ export const ytDlpService = {
         const args = [
             '--newline',
             '--no-playlist',
-            '--js-runtimes', 'node',
-            // Removed impersonate to fix crash, using static cookies instead
+            '--no-warnings',
+            '--no-part',
+            '--concurrent-fragments', '1',
+            '-r', '5M',
             '--force-ipv4',
-            '--extractor-args', 'youtube:player_client=ios,android,web',
-            '--cookies', path.join(process.cwd(), 'cookies.txt'),
             '-o', outputTemplate,
         ];
 
         if (format === 'audio') {
             args.push('-x', '--audio-format', 'mp3');
         } else {
-            // Prioritize the absolute highest quality video and audio streams regardless of their source container, 
-            // and use ffmpeg to mux them into the final requested mp4 container.
-            args.push('-f', 'bv*+ba/b', '--merge-output-format', 'mp4');
+            // Updated fallback format chain explicitly requested by user
+            args.push(
+                '-f', `bestvideo[height<=${format}]+bestaudio/best[height<=${format}]/best[ext=mp4]/best`,
+                '--merge-output-format', 'mp4'
+            );
         }
 
         return new Promise(async (resolve, reject) => {
@@ -100,6 +143,29 @@ export const ytDlpService = {
 
             let finalFilePaths: string[] = [];
             let stderrData = '';
+
+            // 5 minute timeout protection
+            const timeoutDuration = 5 * 60 * 1000;
+            const timeoutId = setTimeout(() => {
+                logger.error(`yt-dlp process timed out after 5 minutes for url ${url}`);
+                ytDlp.kill('SIGKILL');
+            }, timeoutDuration);
+
+            // Helper to clean up partial files on failure
+            const cleanupPartialFiles = async () => {
+                try {
+                    const files = await fs.readdir(config.tmpDir);
+                    for (const file of files) {
+                        if (file.includes(uniqueId)) {
+                            await fs.unlink(path.join(config.tmpDir, file)).catch(() => { });
+                        }
+                    }
+                } catch (e) {
+                    logger.error(`Failed to cleanup partial files for id ${uniqueId}`, e);
+                }
+            };
+
+            // parseStderrForError moved to module scope
 
             ytDlp.stdout.on('data', (data) => {
                 const output = data.toString();
@@ -128,17 +194,18 @@ export const ytDlpService = {
                 stderrData += data.toString();
             });
 
-            ytDlp.on('close', async (code) => {
+            ytDlp.on('close', async (code, signal) => {
+                clearTimeout(timeoutId);
+
+                if (signal === 'SIGKILL') {
+                    await cleanupPartialFiles();
+                    return reject(new Error('Process Timeout (5 minutes exceeded)'));
+                }
+
                 if (code === 0) {
                     try {
-                        // Find the actual existing file from candidates (since yt-dlp handles temporary naming too)
                         let actualPath = '';
-                        // sometimes it just prints "has already been downloaded"
                         if (finalFilePaths.length === 0) {
-                            // we might need to fallback. For a robust solution, yt-dlp can output the final filename with --print
-                            // But since we just watch stdout, let's rely on finding the file in tmpDir that starts with the id
-                            // Actually, a better approach is to tell yt-dlp to just download it, then we read the folder
-                            // However, since we used a uniqueId, we can just glob/search the tmpDir for it.
                             const files = await fs.readdir(config.tmpDir);
                             const matchedFile = files.find(f => f.includes(uniqueId));
                             if (matchedFile) {
@@ -156,6 +223,7 @@ export const ytDlpService = {
                             if (matchedFile) {
                                 actualPath = path.join(config.tmpDir, matchedFile);
                             } else {
+                                await cleanupPartialFiles();
                                 reject(new Error(`yt-dlp finished but final file path could not be determined. Output: ${stderrData}`));
                                 return;
                             }
@@ -164,12 +232,21 @@ export const ytDlpService = {
                         onProgress(100);
                         resolve({ filePath: actualPath.trim() });
                     } catch (err) {
+                        await cleanupPartialFiles();
                         reject(err);
                     }
                 } else {
                     logger.error(`yt-dlp failed: ${stderrData}`);
-                    reject(new Error(`yt-dlp process exited with code ${code}`));
+                    await cleanupPartialFiles();
+                    reject(parseStderrForError(stderrData));
                 }
+            });
+
+            ytDlp.on('error', async (err) => {
+                clearTimeout(timeoutId);
+                logger.error(`yt-dlp process spawn error:`, err);
+                await cleanupPartialFiles();
+                reject(new Error(`Failed to start yt-dlp process: ${err.message}`));
             });
         });
     }

@@ -28,5 +28,5 @@ export const urlSchema = Joi.object({
 });
 
 export const downloadSchema = urlSchema.keys({
-    format: Joi.string().valid('video', 'audio').default('video'),
+    format: Joi.string().valid('1080', '720', '480', 'audio').default('1080'),
 });

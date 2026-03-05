@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 
 export interface DownloadJobData {
     url: string;
-    format: 'video' | 'audio';
+    format: '1080' | '720' | '480' | 'audio';
 }
 
 export const initWorker = () => {
@@ -28,7 +28,10 @@ export const initWorker = () => {
                 throw err;
             }
         },
-        { connection: redisConnection }
+        {
+            connection: redisConnection,
+            concurrency: 2
+        }
     );
 
     worker.on('failed', (job, err) => {

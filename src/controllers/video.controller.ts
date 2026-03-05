@@ -21,8 +21,11 @@ export const videoController = {
                     formats: info.formats,
                 }
             });
-        } catch (err) {
-            next(err);
+        } catch (err: any) {
+            res.status(err.statusCode || 500).json({
+                success: false,
+                message: err.message || "Failed to fetch video info"
+            });
         }
     },
 
@@ -40,8 +43,11 @@ export const videoController = {
                     jobId: job.id
                 }
             });
-        } catch (err) {
-            next(err);
+        } catch (err: any) {
+            res.status(err.statusCode || 500).json({
+                success: false,
+                message: err.message || "Failed to start download"
+            });
         }
     },
 
