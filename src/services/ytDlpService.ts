@@ -131,7 +131,7 @@ export const ytDlpService = {
             // Strictly enforce universally supported MP4 (H264 + AAC)
             // Prevent AV1 and Opus.
             args.push(
-                '-f', `bv*[ext=mp4][height<=${format}]+ba[ext=m4a]/b[ext=mp4][height<=${format}]/best`,
+                '-f', `bv*[ext=mp4][vcodec^=avc1][height<=${format}]+ba[ext=m4a]/b[ext=mp4]/best`,
                 '--merge-output-format', 'mp4',
                 '--recode-video', 'mp4'
             );
