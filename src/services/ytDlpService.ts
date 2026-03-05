@@ -128,10 +128,12 @@ export const ytDlpService = {
         if (format === 'audio') {
             args.push('-x', '--audio-format', 'mp3');
         } else {
-            // Updated fallback format chain explicitly requested by user
+            // Strictly enforce universally supported MP4 (H264 + AAC)
+            // Prevent AV1 and Opus.
             args.push(
-                '-f', `bestvideo[height<=${format}]+bestaudio/best[height<=${format}]/best[ext=mp4]/best`,
-                '--merge-output-format', 'mp4'
+                '-f', `bv*[ext=mp4][height<=${format}]+ba[ext=m4a]/b[ext=mp4][height<=${format}]/best`,
+                '--merge-output-format', 'mp4',
+                '--recode-video', 'mp4'
             );
         }
 
