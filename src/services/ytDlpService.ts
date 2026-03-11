@@ -48,6 +48,7 @@ export const ytDlpService = {
                 '--no-playlist',
                 '--no-warnings',
                 '--force-ipv4',
+                '--extractor-args', 'youtube:player-client=ios,web',
                 url
             ];
 
@@ -122,6 +123,7 @@ export const ytDlpService = {
             '--concurrent-fragments', '1',
             '-r', '5M',
             '--force-ipv4',
+            '--extractor-args', 'youtube:player-client=ios,web',
             '-o', outputTemplate,
         ];
 
