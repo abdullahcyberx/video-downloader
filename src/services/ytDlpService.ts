@@ -42,13 +42,28 @@ const parseStderrForError = (stderr: string): Error => {
 
 export const ytDlpService = {
     async getInfo(url: string): Promise<VideoInfo> {
+        let lastError: any = null;
+        for (let i = 0; i < 3; i++) {
+            try {
+                return await this._fetchInfo(url);
+            } catch (err: any) {
+                logger.warn(`yt-dlp getInfo retry ${i + 1}/3 failed for ${url}: ${err.message || err}`);
+                lastError = err;
+            }
+        }
+        throw lastError || new AppError('YouTube blocked request after retries', 400);
+    },
+
+    async _fetchInfo(url: string): Promise<VideoInfo> {
         return new Promise(async (resolve, reject) => {
             const args = [
                 '--dump-json',
                 '--no-playlist',
                 '--no-warnings',
-                '--force-ipv4',
-                '--extractor-args', 'youtube:player-client=ios,web',
+                '--no-check-certificates',
+                '--geo-bypass',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                '--extractor-args', 'youtube:player_client=android,web',
                 url
             ];
 
@@ -122,8 +137,10 @@ export const ytDlpService = {
             '--no-part',
             '--concurrent-fragments', '1',
             '-r', '5M',
-            '--force-ipv4',
-            '--extractor-args', 'youtube:player-client=ios,web',
+            '--no-check-certificates',
+            '--geo-bypass',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            '--extractor-args', 'youtube:player_client=android,web',
             '-o', outputTemplate,
         ];
 
