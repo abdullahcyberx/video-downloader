@@ -63,7 +63,6 @@ export const ytDlpService = {
                 '--no-check-certificates',
                 '--geo-bypass',
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                '--extractor-args', 'youtube:player_client=android,web',
                 url
             ];
 
@@ -140,7 +139,6 @@ export const ytDlpService = {
             '--no-check-certificates',
             '--geo-bypass',
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-            '--extractor-args', 'youtube:player_client=android,web',
             '-o', outputTemplate,
         ];
 
